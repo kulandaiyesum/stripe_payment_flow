@@ -23,6 +23,20 @@ export class StripeService {
   }
 
   buySingleProduct(product: Product) {
-    return this.http.post(`${this.API_END_POINT}/checkout`, product);
+    return this.http.post(`${this.API_END_POINT}/checkout`, {
+      product,
+      isPremium: false,
+    });
+  }
+
+  createSubscription(userId: string = 'user1') {
+    return this.http.post(this.API_END_POINT + '/create-subscription', {
+      userId,
+    });
+  }
+  cancelSubscription(userId: string = 'user1') {
+    return this.http.post(this.API_END_POINT + '/cancel-subscription', {
+      userId,
+    });
   }
 }

@@ -7,7 +7,6 @@ import { NavigationComponent } from './navigation/navigation.component';
   standalone: true,
   imports: [RouterOutlet, NavigationComponent],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.scss',
 })
 export class AppComponent {
   title = 'stripe_ui';

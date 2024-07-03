@@ -1,6 +1,9 @@
 import { CurrencyPipe } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { Subscription } from '../_models/model';
+import { StripeService } from '../_services/stripe.service';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Stripe } from '@stripe/stripe-js';
 
 @Component({
   selector: 'app-subcription',
@@ -8,7 +11,9 @@ import { Subscription } from '../_models/model';
   imports: [CurrencyPipe],
   templateUrl: './subcription.component.html',
 })
-export class SubcriptionComponent {
+export class SubcriptionComponent implements OnInit {
+  private stripeService = inject(StripeService);
+  stripe: Stripe | null = null;
   subscriptios: Subscription[] = [
     {
       title: 'starter',
@@ -52,7 +57,47 @@ export class SubcriptionComponent {
     },
   ];
 
+  ngOnInit(): void {
+    this.stripeService.getStripe().then((stripe) => {
+      if (stripe) {
+        this.stripe = stripe;
+      }
+    });
+  }
+
   activeSubcription(item: Subscription) {
     console.log(item);
+    this.stripeService.createSubscription().subscribe({
+      next: (res: any) => {},
+      error: (err: any) => {},
+    });
+  }
+
+  createSubscription() {
+    this.stripeService.createSubscription().subscribe({
+      next: (res: any) => {
+        console.log('subscription response is ', res);
+        this.stripe?.redirectToCheckout({
+          sessionId: res.id,
+        });
+      },
+      error: (err: HttpErrorResponse) => {
+        console.log('subscription error is ', err);
+        // if(err.status === 409) {
+        //   const redirectUrl = err.error?.data?.redirectUrl
+        //   window.location.href = redirectUrl
+        // }
+      },
+    });
+  }
+  cancelSubcription() {
+    this.stripeService.cancelSubscription().subscribe({
+      next: (res: any) => {
+        console.log('sub cancel is', res);
+      },
+      error: (err: any) => {
+        console.log('sub error is', err);
+      },
+    });
   }
 }
