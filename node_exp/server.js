@@ -22,9 +22,10 @@ const paymentSchema = new mongoose.Schema({
 });
 const subscriptionSchema = new mongoose.Schema({
   userId: String,
-  stripeSubscriptionId: String,
-  status: String,
-  sessionId: String,
+  stripeSubscriptionId: String, // important
+  status: String, // important
+  sessionId: String, // important
+  custormerId: String, // important
   plan: String, // e.g., 'monthly', 'yearly'
   current_period_end: Number, // Unix timestamp for subscription end date
   createdAt: { type: Date, default: Date.now },
@@ -55,8 +56,9 @@ app.post(
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
+      console.log(`\n\n\n event is\n\n ${event} \n\n\n`);
       console.log(session);
-      if(session.mode ==="payment") {
+      if (session.mode === "payment") {
         try {
           const paymentObj = await Payment.findOne({
             stripeSessionId: session.id,
@@ -67,38 +69,21 @@ app.post(
           console.log("error in checkout.session.completed", error.message);
         }
       }
+      if (session.mode === "subscription") {
+        try {
+          const subscriptionObj = await Subscription.findOne({
+            sessionId: session.id,
+          });
+          subscriptionObj.status = session.status;
+          subscriptionObj.custormerId = session.customer;
+          subscriptionObj.stripeSubscriptionId = session.subscription;
+          await subscriptionObj.save();
+          console.log("subscription saved successfully");
+        } catch (error) {
+          console.log("error in checkout subscription", error.message);
+        }
+      }
     }
-    if (event.type === "invoice.payment_succeeded") {
-      const invoice = event.data.object;
-      console.log("\n\n" + 'invoice start \n\n', invoice, "\n\n invoice end")
-      const subscriptionId = invoice.subscription;
-    const subscription = await stripe.subscriptions.retrieve(
-      event.data.object.subscription
-    );
-    const customer = await stripe.customers.retrieve(
-      event.data.object.customer
-    );
-    console.log("subscription \n\n",subscription,"\n\n subscription ends\n\ncustomer start \n\n",customer,"\n\ncutomer ends\n\n");
-
-      const sub = await Subscription.findOneAndUpdate(
-        { stripeSubscriptionId: subscriptionId },
-        { status: "active", current_period_end: invoice.period_end },
-        { new: true }
-      );
-    } else if (event.type === "invoice.payment_failed") {
-      const invoice = event.data.object;
-      const subscriptionId = invoice.subscription;
-
-      await Subscription.findOneAndUpdate(
-        { stripeSubscriptionId: subscriptionId },
-        { status: "past_due" },
-        { new: true }
-      );
-    }
-    if(event.type === 'customer.subscription.updated') {
-
-    }
-
     response.json({ received: true });
   }
 );
@@ -153,77 +138,44 @@ app.post("/create-subscription", async (req, res) => {
   const { userId } = req.body;
   const userEmail = "test123@gmail.com";
   const userAuth = userEmail;
-  let customer;
   try {
-    const existingCustomers = await stripe.customers.list({
-      email: userEmail,
-      limit: 1,
-    });
-    if (existingCustomers.data.length > 0) {
-      console.log(existingCustomers);
-      customer = existingCustomers.data[0];
-
-      const subscriptions = await stripe.subscriptions.list({
-        customer: customer.id,
-        status: "active",
-        limit: 1,
-      });
-      if (subscriptions.data.length > 0) {
-        const stripeSession = await stripe.billingPortal.sessions.create({
-          customer: customer.id,
-          return_url: "http://localhost:4200",
-        });
-        return res.status(409).json({ redirecUrl: stripeSession.url });
-      }
-    } else {
-      customer = await stripe.customers.create({
-        email: userEmail,
-        metadata: {
-          userId: userAuth
-        }
-      })
-    }
-
     const session = await stripe.checkout.sessions.create({
       success_url:
         "http://localhost:4200/success?session_id={CHECKOUT_SESSION_ID}",
       cancel_url: "http://localhost:4200/cancel",
-      payment_method_types: ['card'],
+      payment_method_types: ["card"],
       mode: "subscription",
-      billing_address_collection: 'auto',
+      billing_address_collection: "auto",
       line_items: [
         {
           price_data: {
-            currency: 'inr',
+            currency: "inr",
             product_data: {
-              name: 'company',
-              description: 'Relevant for multiple users, extended & premium support.'
+              name: "company",
+              description:
+                "Relevant for multiple users, extended & premium support.",
             },
-            unit_amount: '49900',
+            unit_amount: "49900",
             recurring: {
-              interval: 'month',
-            }
+              interval: "month",
+            },
           },
-          quantity: 1
+          quantity: 1,
         },
       ],
       metadata: {
         userId: userAuth,
       },
-      customer: customer.id
     });
-    // const priceId = session.
-    // const newSubscription = new Subscription({
-    //   userId,
-    //   stripeSubscriptionId: session.id,
-    //   status: session.status,
-    //   plan: priceId.includes("monthly") ? "monthly" : "yearly",
-    //   current_period_end: session.current_period_end,
-    // });
+    const newSubscription = new Subscription({
+      userId,
+      status: session.status,
+      sessionId: session.id,
+      plan: "monthly",
+      current_period_end: session.current_period_end,
+    });
 
-    // await newSubscription.save();
-    console.log("\n\n sesssion is start here \n\n", session,"\n\n sesssion is end here \n\n")
-
+    await newSubscription.save();
     res.send({ id: session.id });
   } catch (error) {
     console.log(error);
@@ -237,22 +189,21 @@ app.post("/cancel-subscription", async (req, res) => {
     userId = "user1";
   }
 
-  const subscription = await Subscription.findOne({ userId, status: "active" });
+  const subscription = await Subscription.findOne({ userId, status: "complete" });
 
   if (!subscription) {
     return res.status(404).send({ error: "No active subscription found" });
   }
-
+  console.log("sub is " , subscription)
   try {
-    const deletedSubscription = await stripe.subscriptions.del(
+    const deletedSubscription = await stripe.subscriptions.cancel(
       subscription.stripeSubscriptionId
     );
-
     subscription.status = "canceled";
     await subscription.save();
-
     res.send({ success: true, subscription: deletedSubscription });
   } catch (error) {
+    console.log("error", error);
     res.status(500).send({ error: "Failed to cancel subscription" });
   }
 });
