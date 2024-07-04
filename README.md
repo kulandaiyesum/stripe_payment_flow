@@ -27,7 +27,7 @@ This project implements a subscription and payment system using Stripe for payme
 1. **Clone the Repository**
    ```bash
    git clone https://github.com/kulandaiyesum/stripe_payment_flow.git
-   cd your-repo
+   cd stripe_payment_flow
  
 2. **Install Backend Dependencies**
    ```bash
