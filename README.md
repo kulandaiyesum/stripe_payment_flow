@@ -58,12 +58,10 @@ This project implements a subscription and payment system using Stripe for payme
 ## Running the Application
 
 ### Start the Backend Server
-    ```bash
     cd backend
     npm start
 
 ### Start the Angular Frontend
-    ```bash
     cd backend
     npm start
 
