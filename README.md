@@ -43,6 +43,7 @@ This project implements a subscription and payment system using Stripe for payme
    Create a `.env` file in the `backend` directory with the following content:
    ```plaintext
       PORT=3000
+      DATABASE_URI=your_database_uri
       STRIPE_SECRET_KEY=your_stripe_secret_key
       STRIPE_WEBHOOK_KEY=your_stripe_webhook_key
       DATABASE_URI=your_mongodb_connection_string
@@ -102,5 +103,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 
   ```javascript
-  Make sure to replace placeholders like `your_stripe_publishable_key`, `your_end_point`,`your_repo_url`, `your_stripe_secret_key`, `your_stripe_webhook_key`, and `your_mongodb_connection_string` with actual values relevant to your project.
+  Make sure to replace placeholders like `your_stripe_publishable_key`, `your_end_point`,`your_repo_url`, `your_database_uri`, `your_stripe_secret_key`, `your_stripe_webhook_key`, and `your_mongodb_connection_string` with actual values relevant to your project.
 
